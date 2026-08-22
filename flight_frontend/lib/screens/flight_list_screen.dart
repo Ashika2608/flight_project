@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
 
 // ---------------------------------------------------------
 // 1. FLIGHT SEARCH SCREEN
@@ -243,7 +244,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
               children: [
                 Text("Total: ₹ ${calculateTotal()}", style: const TextStyle(color: Colors.greenAccent, fontSize: 20)),
                 ElevatedButton(
-                  onPressed: selectedSeats.isEmpty ? null : () => Navigator.push(context, MaterialPageRoute(builder: (context) => PassengerDetailsScreen(from: widget.from, to: widget.to, totalAmount: calculateTotal()))),
+                  onPressed: selectedSeats.isEmpty ? null : () => Navigator.push(context, MaterialPageRoute(builder: (context) => PassengerDetailsScreen(from: widget.from, to: widget.to, totalAmount: calculateTotal(), seatCount: selectedSeats.length))),
                   child: const Text("NEXT"),
                 )
               ],
@@ -259,8 +260,8 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
 // 4. PASSENGER DETAILS SCREEN
 // ---------------------------------------------------------
 class PassengerDetailsScreen extends StatefulWidget {
-  final String from; final String to; final int totalAmount;
-  const PassengerDetailsScreen({super.key, required this.from, required this.to, required this.totalAmount});
+  final String from; final String to; final int totalAmount; final int seatCount;
+  const PassengerDetailsScreen({super.key, required this.from, required this.to, required this.totalAmount, required this.seatCount});
 
   @override
   State<PassengerDetailsScreen> createState() => _PassengerDetailsScreenState();
@@ -282,7 +283,7 @@ class _PassengerDetailsScreenState extends State<PassengerDetailsScreen> {
             SizedBox(width: double.infinity, height: 55, child: ElevatedButton(
               onPressed: () {
                 if (_nameController.text.isNotEmpty) {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => PaymentScreen(from: widget.from, to: widget.to, passengerName: _nameController.text, amount: widget.totalAmount)));
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => PaymentScreen(from: widget.from, to: widget.to, passengerName: _nameController.text, amount: widget.totalAmount, seatCount: widget.seatCount)));
                 }
               },
               child: const Text("PROCEED TO PAYMENT"),
@@ -298,8 +299,8 @@ class _PassengerDetailsScreenState extends State<PassengerDetailsScreen> {
 // 5. PAYMENT SCREEN
 // ---------------------------------------------------------
 class PaymentScreen extends StatefulWidget {
-  final String from; final String to; final String passengerName; final int amount;
-  const PaymentScreen({super.key, required this.from, required this.to, required this.passengerName, required this.amount});
+  final String from; final String to; final String passengerName; final int amount; final int seatCount;
+  const PaymentScreen({super.key, required this.from, required this.to, required this.passengerName, required this.amount, required this.seatCount});
 
   @override
   State<PaymentScreen> createState() => _PaymentScreenState();
@@ -310,7 +311,21 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   void _processPayment() {
     setState(() => isProcessing = true);
-    Future.delayed(const Duration(seconds: 3), () {
+    Future.delayed(const Duration(seconds: 3), () async {
+      // ✅ Save booking to backend
+      try {
+        await ApiService.createBooking(
+          passengerName: widget.passengerName,
+          source: widget.from,
+          destination: widget.to,
+          seatType: "${widget.seatCount} seat(s)",
+          price: widget.amount.toDouble(),
+        );
+      } catch (e) {
+        // Backend save failed, but still show boarding pass
+        debugPrint("Booking save failed: $e");
+      }
+      if (!mounted) return;
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => BoardingPassScreen(from: widget.from, to: widget.to, passengerName: widget.passengerName)));
     });
   }
