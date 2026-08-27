@@ -1,9 +1,5 @@
-# Stage 1: Build Flutter web app
-FROM debian:bookworm-slim AS flutter-build
-RUN apt-get update && apt-get install -y curl git unzip xz-utils && rm -rf /var/lib/apt/lists/*
-RUN git clone https://github.com/flutter/flutter.git -b stable --depth 1 /flutter
-ENV PATH="/flutter/bin:${PATH}"
-RUN flutter config --enable-web && flutter precache --web
+# Stage 1: Build Flutter web app (using prebuilt Flutter image - faster & reliable)
+FROM ghcr.io/cirruslabs/flutter:stable AS flutter-build
 WORKDIR /app
 COPY flight_frontend/ .
 RUN flutter pub get && flutter build web
